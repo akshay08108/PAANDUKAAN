@@ -15,12 +15,7 @@ service cloud.firestore {
     }
 
     function isSeller() {
-      return signedIn()
-        && 'seller' in currentUser().roles;
-    }
-
-    function isCustomer() {
-      return signedIn() && 'customer' in currentUser().roles;
+      return signedIn() && 'seller' in currentUser().roles;
     }
 
     match /users/{uid} {
@@ -40,69 +35,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /stores/{storeId} {
-      allow read: if true;
-      allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.status in ['approved', 'pending'];
-      allow update: if isSeller()
-        && resource.data.ownerId == request.auth.uid
-        && request.resource.data.ownerId == resource.data.ownerId
-        && request.resource.data.status == resource.data.status;
-      allow delete: if false;
-    }
-
-    match /products/{productId} {
-      allow read: if true;
-      allow create: if isSeller()
-        && request.resource.data.sellerId == request.auth.uid;
-      allow update: if (
-          isSeller()
-          && resource.data.sellerId == request.auth.uid
-        ) || (
-          isCustomer()
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['stock', 'status', 'lastOrderId', 'updatedAt'])
-          && request.resource.data.lastOrderId is string
-          && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.customerId == request.auth.uid
-          && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.storeId == resource.data.storeId
-          && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.itemQuantities[productId] is int
-          && getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.itemQuantities[productId] > 0
-          && request.resource.data.stock == resource.data.stock - getAfter(/databases/$(database)/documents/orders/$(request.resource.data.lastOrderId)).data.itemQuantities[productId]
-          && request.resource.data.stock >= 0
-          && (
-            (request.resource.data.stock == 0 && request.resource.data.status == 'out-of-stock')
-            || (request.resource.data.stock > 0 && request.resource.data.status == 'published')
-          )
-        );
-      allow delete: if isSeller()
-        && resource.data.sellerId == request.auth.uid;
-    }
-
-    match /orders/{orderId} {
-      allow create: if signedIn()
-        && request.resource.data.customerId == request.auth.uid;
-      allow read: if signedIn() && (
-        resource.data.customerId == request.auth.uid
-        || (isSeller() && resource.data.storeId in currentUser().storeIds)
-      );
-      allow update: if isSeller()
-        && resource.data.storeId in currentUser().storeIds;
-      allow delete: if false;
-    }
-
-    match /tickets/{ticketId} {
-      allow create: if signedIn()
-        && request.resource.data.customerId == request.auth.uid;
-      allow read, update: if signedIn() && (
-        resource.data.customerId == request.auth.uid
-        || (isSeller() && resource.data.storeId in currentUser().storeIds)
-      );
-      allow delete: if false;
-    }
-
-    // PaanDukaan shares Firebase Authentication and user profiles with PartX,
-    // but keeps perishable inventory and pickup orders in isolated collections.
     match /paanProducts/{productId} {
       allow read: if true;
       allow create: if isSeller()
@@ -126,7 +58,9 @@ service cloud.firestore {
         || (isSeller() && resource.data.storeId == request.auth.uid)
       );
       allow update: if isSeller()
-        && resource.data.storeId == request.auth.uid;
+        && resource.data.storeId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['stage', 'updatedAt']);
       allow delete: if false;
     }
 

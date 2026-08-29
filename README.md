@@ -1,6 +1,6 @@
 # PaanDukaan
 
-A Vercel-ready Next.js marketplace for fresh paan and local shop pickup. It keeps the Firebase authentication/data model used by PartX while removing vehicle, garage, delivery, and demo-product flows.
+A Vercel-ready Next.js marketplace for fresh paan and local shop pickup. It uses its own isolated Firebase project, authentication accounts, inventory, and pickup orders.
 
 ## What is included
 
@@ -19,22 +19,22 @@ npm install
 npm run dev
 ```
 
-The app defaults to the same public Firebase web configuration as PartX. To use a dedicated Firebase project, copy `.env.example` to `.env.local` and replace the values.
+The app defaults to the dedicated `paandukaan-production` Firebase project. Copy `.env.example` to `.env.local` only when local overrides are required.
 
 Enable Email/Password authentication in Firebase Authentication. The app reads and writes these collections:
 
 - `users`
-- `paanProducts` (isolated from the PartX automotive catalog)
+- `paanProducts`
 - `paanOrders` (pickup-only PaanDukaan orders)
 
 For production, add Firestore rules that allow public reads of published products, authenticated users to manage their own user profile and orders, and sellers to manage products whose `storeId` matches their Firebase UID.
 
-This repository includes compatible rules that preserve the existing PartX collections and add only the isolated PaanDukaan collections. Deploy them once from a Firebase CLI session with:
+This repository includes PaanDukaan-only Firestore rules. Deploy them from a Firebase CLI session with:
 
 ```bash
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules --project paandukaan-production
 ```
 
 ## Deploy to Vercel
 
-Import this repository in Vercel. The framework is detected as Next.js. Add the `NEXT_PUBLIC_FIREBASE_*` environment variables from `.env.example` if you want to override the PartX Firebase project, then deploy.
+Import this repository in Vercel. The framework is detected as Next.js. The committed defaults and `.env.example` both point exclusively to `paandukaan-production`.
