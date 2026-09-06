@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useApp } from "./app-provider";
 import { Icon } from "./icons";
 
-const nav = [["/", "Home"], ["/shop", "Shop"], ["/orders", "My Orders"], ["/sell", "Sell"]] as const;
+const nav = [["/", "Home"], ["/shop", "Explore"], ["/orders", "My Orders"], ["/sell", "For Sellers"]] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return <div className="app-shell">
     <header className="site-header"><div className="container header-inner">
-      <Link className="brand" href="/" onClick={() => setOpen(false)}><span>Paan</span>Dukaan</Link>
+      <Link className="brand" href="/" onClick={() => setOpen(false)} aria-label="MeraPaan home"><span className="brand-mark">M</span><span className="brand-name"><b>Mera</b>Paan</span></Link>
       <nav className={open ? "nav open" : "nav"} aria-label="Main navigation">
         {nav.map(([href, label]) => <Link className={pathname === href ? "active" : ""} href={href} key={href} onClick={() => setOpen(false)}>{label}</Link>)}
       </nav>
@@ -25,6 +25,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </div></header>
     <main>{children}</main>
-    <footer className="footer"><div className="container footer-inner"><Link className="brand" href="/"><span>Paan</span>Dukaan</Link><p>Freshly prepared by local shops. Pickup on your time.</p><div><Link href="/shop">Shop</Link><Link href="/sell">For sellers</Link><Link href="/login">Account</Link></div></div></footer>
+    <footer className="footer"><div className="container footer-inner"><Link className="brand" href="/"><span className="brand-mark">M</span><span className="brand-name"><b>Mera</b>Paan</span></Link><p>Apna Paan. Apni Pasand. Freshly prepared by local shops.</p><div><Link href="/shop">Explore</Link><Link href="/sell">For sellers</Link><Link href="/login">Account</Link></div></div></footer>
   </div>;
 }
