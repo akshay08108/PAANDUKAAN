@@ -5,8 +5,10 @@ import { AppProvider } from "@/components/app-provider";
 import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
-  title: { default: "PaanDukaan — Fresh paan, scheduled pickup", template: "%s | PaanDukaan" },
-  description: "Order fresh paan from trusted local shops and collect it at your chosen pickup time.",
+  title: { default: "MeraPaan — Apna Paan. Apni Pasand.", template: "%s | MeraPaan" },
+  description: "Discover trusted local paan shops, order your favourites and collect them fresh at your chosen pickup time.",
+  applicationName: "MeraPaan",
+  themeColor: "#064E3B",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
