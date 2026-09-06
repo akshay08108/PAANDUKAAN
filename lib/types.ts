@@ -9,6 +9,25 @@ export type AppUser = {
   storeName?: string;
 };
 
+export type StoreProfile = {
+  id: string;
+  ownerId: string;
+  name: string;
+  imageUrl?: string;
+  description?: string;
+  address?: string;
+  area?: string;
+  city: string;
+  openingTime?: string;
+  closingTime?: string;
+  isOpen: boolean;
+  contactNumber?: string;
+  upiId?: string;
+  upiQrImageUrl?: string;
+};
+
+export type ProductStatus = "published" | "out-of-stock" | "draft";
+
 export type Product = {
   id: string;
   name: string;
@@ -19,11 +38,15 @@ export type Product = {
   imageUrl?: string;
   storeId: string;
   storeName: string;
-  status: "published" | "out-of-stock" | "draft";
+  status: ProductStatus;
   preparationMinutes?: number;
 };
 
 export type CartLine = { product: Product; quantity: number };
+
+export type PaymentMethod = "pay-at-shop" | "upi";
+export type PaymentStatus = "PENDING" | "PAID" | "PAY_AT_PICKUP" | "FAILED" | "REFUNDED";
+export type OrderStage = "Order placed" | "Confirmed" | "Preparing" | "Ready for pickup" | "Collected" | "Cancelled" | "Rejected";
 
 export type PickupOrder = {
   id: string;
@@ -35,7 +58,13 @@ export type PickupOrder = {
   storeName: string;
   pickupDate: string;
   pickupTime: string;
-  paymentMethod: "pay-at-shop" | "upi";
-  stage: "Order placed" | "Confirmed" | "Preparing" | "Ready for pickup" | "Collected" | "Cancelled";
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  paymentReference?: string;
+  customerMobile?: string;
+  stage: OrderStage;
   placedAt: string;
 };
+
+export type ProductInput = Omit<Product, "id" | "storeId" | "storeName" | "status">;
+export type StoreInput = Omit<StoreProfile, "id" | "ownerId">;

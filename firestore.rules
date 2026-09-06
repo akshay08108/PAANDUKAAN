@@ -18,6 +18,14 @@ service cloud.firestore {
       return signedIn() && 'seller' in currentUser().roles;
     }
 
+    function validStageChange() {
+      return request.resource.data.stage == resource.data.stage
+        || (resource.data.stage == 'Order placed' && request.resource.data.stage in ['Confirmed', 'Rejected'])
+        || (resource.data.stage == 'Confirmed' && request.resource.data.stage in ['Preparing', 'Cancelled'])
+        || (resource.data.stage == 'Preparing' && request.resource.data.stage in ['Ready for pickup', 'Cancelled'])
+        || (resource.data.stage == 'Ready for pickup' && request.resource.data.stage == 'Collected');
+    }
+
     match /users/{uid} {
       allow create: if ownsUser(uid)
         && request.resource.data.roles.size() == 1
@@ -39,7 +47,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSeller()
         && request.resource.data.storeId == request.auth.uid
-        && request.resource.data.status == 'published';
+        && request.resource.data.status in ['published', 'out-of-stock'];
       allow update: if isSeller()
         && resource.data.storeId == request.auth.uid
         && request.resource.data.storeId == resource.data.storeId;
@@ -47,12 +55,27 @@ service cloud.firestore {
         && resource.data.storeId == request.auth.uid;
     }
 
+    match /paanStores/{storeId} {
+      allow read: if true;
+      allow create: if isSeller()
+        && storeId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSeller()
+        && storeId == request.auth.uid
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+      allow delete: if false;
+    }
+
     match /paanOrders/{orderId} {
       allow create: if signedIn()
         && request.resource.data.customerId == request.auth.uid
         && request.resource.data.fulfilment == 'pickup'
         && request.resource.data.pickupDate is string
-        && request.resource.data.pickupTime is string;
+        && request.resource.data.pickupTime is string
+        && request.resource.data.paymentMethod in ['pay-at-shop', 'upi']
+        && request.resource.data.paymentStatus in ['PAY_AT_PICKUP', 'PENDING']
+        && request.resource.data.stage == 'Order placed';
       allow read: if signedIn() && (
         resource.data.customerId == request.auth.uid
         || (isSeller() && resource.data.storeId == request.auth.uid)
@@ -60,7 +83,12 @@ service cloud.firestore {
       allow update: if isSeller()
         && resource.data.storeId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['stage', 'updatedAt']);
+          .hasOnly(['stage', 'paymentStatus', 'paymentReference', 'updatedAt'])
+        && validStageChange()
+        && (
+          !('paymentStatus' in request.resource.data)
+          || request.resource.data.paymentStatus in ['PAY_AT_PICKUP', 'PENDING', 'PAID', 'FAILED', 'REFUNDED']
+        );
       allow delete: if false;
     }
 

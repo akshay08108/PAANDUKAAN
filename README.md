@@ -1,6 +1,6 @@
-# PaanDukaan
+# MeraPaan
 
-A Vercel-ready Next.js marketplace for fresh paan and local shop pickup. It uses its own isolated Firebase project, authentication accounts, inventory, and pickup orders.
+**Apna Paan. Apni Pasand.** A Vercel-ready marketplace for discovering Hyderabad paan shops, ordering fresh products, and collecting them at a scheduled pickup time. The existing isolated Firebase project, authentication accounts, inventory, and orders remain in use.
 
 ## What is included
 
@@ -9,8 +9,10 @@ A Vercel-ready Next.js marketplace for fresh paan and local shop pickup. It uses
 - One-shop cart protection for a clear pickup experience
 - Scheduled pickup day and time selection
 - Pickup-only orders saved to Firestore
-- Customer order history and seller product publishing
-- Responsive layout and production build configuration for Vercel
+- Direct seller UPI or pay-at-pickup payment states; MeraPaan never holds customer funds
+- Detailed customer order tracking and seller order workflow
+- Seller storefront, product, stock, pickup, and payment configuration
+- Installable PWA metadata and responsive production configuration for Vercel
 
 ## Local setup
 
@@ -25,11 +27,10 @@ Enable Email/Password authentication in Firebase Authentication. The app reads a
 
 - `users`
 - `paanProducts`
-- `paanOrders` (pickup-only PaanDukaan orders)
+- `paanOrders` (pickup-only MeraPaan orders)
+- `paanStores` (additive seller storefront and payment settings)
 
-For production, add Firestore rules that allow public reads of published products, authenticated users to manage their own user profile and orders, and sellers to manage products whose `storeId` matches their Firebase UID.
-
-This repository includes PaanDukaan-only Firestore rules. Deploy them from a Firebase CLI session with:
+This repository includes backward-compatible MeraPaan Firestore rules. Deploy them from an authenticated Firebase CLI session with:
 
 ```bash
 firebase deploy --only firestore:rules --project paandukaan-production
@@ -37,4 +38,6 @@ firebase deploy --only firestore:rules --project paandukaan-production
 
 ## Deploy to Vercel
 
-Import this repository in Vercel. The framework is detected as Next.js. The committed defaults and `.env.example` both point exclusively to `paandukaan-production`.
+Import this repository in Vercel. The framework is detected as Next.js. Keep the existing Firebase environment variable names and values; they point exclusively to `paandukaan-production`. Set `NEXT_PUBLIC_APP_URL` to the production domain if it differs from the current Vercel URL.
+
+Before going live, verify Email/Password authentication is enabled and deploy `firestore.rules`. Direct UPI remains unavailable per shop until its seller saves a UPI ID or QR URL.
