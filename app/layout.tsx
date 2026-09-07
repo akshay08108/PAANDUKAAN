@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "MeraPaan" },
   icons: {
-    icon: [{ url: "/icons/merapaan-favicon.png", type: "image/png", sizes: "1254x1254" }],
-    apple: [{ url: "/icons/merapaan-app-icon.png", type: "image/png", sizes: "1254x1254" }],
+    icon: [{ url: "/icons/merapaan-favicon.png", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/icons/merapaan-app-icon.png", type: "image/png", sizes: "512x512" }],
   },
 };
 
