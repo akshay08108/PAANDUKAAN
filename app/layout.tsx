@@ -11,10 +11,13 @@ export const metadata: Metadata = {
   applicationName: "MeraPaan",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "MeraPaan" },
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: {
+    icon: [{ url: "/icons/merapaan-favicon.png", type: "image/png", sizes: "1254x1254" }],
+    apple: [{ url: "/icons/merapaan-app-icon.png", type: "image/png", sizes: "1254x1254" }],
+  },
 };
 
-export const viewport = { themeColor: "#064E3B", colorScheme: "light" };
+export const viewport = { themeColor: "#003B2A", colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" data-scroll-behavior="smooth"><body><AppProvider><AppShell>{children}</AppShell></AppProvider></body></html>;

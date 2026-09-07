@@ -9,7 +9,7 @@ import type { OrderStage, PaymentStatus } from "@/lib/types";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <span className={compact ? "brand-lockup compact" : "brand-lockup"}>
-    <span className="brand-symbol" aria-hidden="true"><b>M</b><Icon name="leaf"/></span>
+    <Image className="brand-symbol" src="/icons/merapaan-favicon.png" width={38} height={38} alt=""/>
     <span className="brand-word">MeraPaan</span>
   </span>;
 }
