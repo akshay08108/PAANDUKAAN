@@ -1,5 +1,8 @@
 rules_version = '2';
 
+// Dedicated Firestore rules for the MeraPaan application.
+// Firebase project: paandukaan-production
+// These rules intentionally do not grant access to PartX collections.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -15,7 +18,10 @@ service cloud.firestore {
     }
 
     function isSeller() {
-      return signedIn() && 'seller' in currentUser().roles;
+      return signedIn()
+        && currentUser().roles is list
+        && 'seller' in currentUser().roles
+        && currentUser().sellerStatus == 'approved';
     }
 
     function validStageChange() {
@@ -28,12 +34,17 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow create: if ownsUser(uid)
+        && request.resource.data.keys().hasOnly([
+          'name', 'email', 'mobile', 'roles', 'activeRole', 'sellerStatus',
+          'storeIds', 'storeName', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.roles is list
         && request.resource.data.roles.size() == 1
         && request.resource.data.activeRole in request.resource.data.roles
         && request.resource.data.roles[0] in ['customer', 'seller']
         && (
           request.resource.data.roles[0] == 'customer'
-          || request.resource.data.sellerStatus in ['approved', 'pending']
+          || request.resource.data.sellerStatus == 'approved'
         );
       allow read: if ownsUser(uid);
       allow update: if ownsUser(uid)
@@ -41,18 +52,6 @@ service cloud.firestore {
           .hasOnly(['activeRole', 'name', 'mobile', 'updatedAt'])
         && request.resource.data.activeRole in resource.data.roles;
       allow delete: if false;
-    }
-
-    match /paanProducts/{productId} {
-      allow read: if true;
-      allow create: if isSeller()
-        && request.resource.data.storeId == request.auth.uid
-        && request.resource.data.status in ['published', 'out-of-stock'];
-      allow update: if isSeller()
-        && resource.data.storeId == request.auth.uid
-        && request.resource.data.storeId == resource.data.storeId;
-      allow delete: if isSeller()
-        && resource.data.storeId == request.auth.uid;
     }
 
     match /paanStores/{storeId} {
@@ -67,9 +66,26 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /paanProducts/{productId} {
+      allow read: if true;
+      allow create: if isSeller()
+        && request.resource.data.storeId == request.auth.uid
+        && request.resource.data.status in ['published', 'out-of-stock'];
+      allow update: if isSeller()
+        && resource.data.storeId == request.auth.uid
+        && request.resource.data.storeId == resource.data.storeId
+        && request.resource.data.status in ['published', 'out-of-stock', 'draft'];
+      allow delete: if isSeller()
+        && resource.data.storeId == request.auth.uid;
+    }
+
     match /paanOrders/{orderId} {
       allow create: if signedIn()
         && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.storeId is string
+        && request.resource.data.items is list
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
         && request.resource.data.fulfilment == 'pickup'
         && request.resource.data.pickupDate is string
         && request.resource.data.pickupTime is string
@@ -85,10 +101,9 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['stage', 'paymentStatus', 'paymentReference', 'updatedAt'])
         && validStageChange()
-        && (
-          !('paymentStatus' in request.resource.data)
-          || request.resource.data.paymentStatus in ['PAY_AT_PICKUP', 'PENDING', 'PAID', 'FAILED', 'REFUNDED']
-        );
+        && request.resource.data.paymentStatus in [
+          'PAY_AT_PICKUP', 'PENDING', 'PAID', 'FAILED', 'REFUNDED'
+        ];
       allow delete: if false;
     }
 

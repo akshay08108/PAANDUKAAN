@@ -30,7 +30,7 @@ Enable Email/Password authentication in Firebase Authentication. The app reads a
 - `paanOrders` (pickup-only MeraPaan orders)
 - `paanStores` (additive seller storefront and payment settings)
 
-This repository includes backward-compatible MeraPaan Firestore rules. Deploy them from an authenticated Firebase CLI session with:
+This repository includes a dedicated MeraPaan-only Firestore ruleset. The Firebase configuration deploys `firestore.merapaan.rules` to the separate `paandukaan-production` project and grants no PartX collection access. Deploy it from an authenticated Firebase CLI session with:
 
 ```bash
 firebase deploy --only firestore:rules --project paandukaan-production
@@ -40,4 +40,4 @@ firebase deploy --only firestore:rules --project paandukaan-production
 
 Import this repository in Vercel. The framework is detected as Next.js. Keep the existing Firebase environment variable names and values; they point exclusively to `paandukaan-production`. Set `NEXT_PUBLIC_APP_URL` to the production domain if it differs from the current Vercel URL.
 
-Before going live, verify Email/Password authentication is enabled and deploy `firestore.rules`. Direct UPI remains unavailable per shop until its seller saves a UPI ID or QR URL.
+Before going live, verify Email/Password authentication is enabled and deploy `firestore.merapaan.rules`. Direct UPI remains unavailable per shop until its seller saves a UPI ID or QR URL.

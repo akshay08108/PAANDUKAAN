@@ -15,6 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { cartCount, user } = useApp();
   const [open, setOpen] = useState(false);
   const accountHref = user?.roles.includes("seller") ? "/sell" : user ? "/orders" : "/login";
+  if (pathname === "/login") return <main className="auth-route">{children}</main>;
   return <div className="app-shell">
     <header className="site-header"><div className="container header-inner">
       <Link className="brand" href="/" onClick={() => setOpen(false)} aria-label="MeraPaan home"><Brand/></Link>

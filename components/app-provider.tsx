@@ -300,7 +300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         activeRole: input.role,
         ...(input.role === "seller" ? {
           sellerStatus: "approved",
-          storeIds: [`paan-store-${credential.user.uid}`],
+          storeIds: [credential.user.uid],
           storeName: cleanStoreName,
         } : {}),
         createdAt: serverTimestamp(),
