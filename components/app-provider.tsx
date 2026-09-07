@@ -14,6 +14,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   onSnapshot,
   query,
   serverTimestamp,
@@ -48,7 +49,7 @@ type AppContextValue = {
   cartCount: number;
   cartTotal: number;
   orders: PickupOrder[];
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role?: UserRole) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -66,6 +67,7 @@ type AppContextValue = {
 
 const AppContext = createContext<AppContextValue | null>(null);
 const CART_KEY = "paandukaan-cart-v1";
+const AUTH_PROFILE_CACHE_KEY = "merapaan-firebase-profile-v1";
 
 function parseUser(id: string, email: string, data: Record<string, unknown>): AppUser {
   const roles: UserRole[] = Array.isArray(data.roles)
@@ -79,6 +81,23 @@ function parseUser(id: string, email: string, data: Record<string, unknown>): Ap
     roles,
     storeName: data.storeName ? String(data.storeName) : undefined,
   };
+}
+
+function readCachedUser(id: string, email: string) {
+  try {
+    const cached = localStorage.getItem(AUTH_PROFILE_CACHE_KEY);
+    if (!cached) return null;
+    const data = JSON.parse(cached) as Record<string, unknown>;
+    if (data.id !== id) return null;
+    return parseUser(id, email, data);
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(profile: AppUser | null) {
+  if (profile) localStorage.setItem(AUTH_PROFILE_CACHE_KEY, JSON.stringify(profile));
+  else localStorage.removeItem(AUTH_PROFILE_CACHE_KEY);
 }
 
 function parseProduct(id: string, data: Record<string, unknown>): Product {
@@ -146,6 +165,7 @@ export function friendlyAuthError(reason: unknown) {
   if (message.includes("auth/weak-password")) return "Use a password with at least 6 characters.";
   if (message.includes("auth/too-many-requests")) return "Too many attempts. Please wait and try again.";
   if (message.includes("auth/network-request-failed")) return "Check your internet connection and try again.";
+  if (message.startsWith("This email is not registered") || message.startsWith("Account profile not found")) return message;
   return "We could not complete that request. Please try again.";
 }
 
@@ -193,14 +213,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       stopProfile();
       if (!authUser) {
         setUser(null);
+        cacheUser(null);
         setAuthReady(true);
         return;
       }
-      stopProfile = onSnapshot(doc(firestore, "users", authUser.uid), (snapshot) => {
-        setUser(parseUser(authUser.uid, authUser.email ?? "", snapshot.data() ?? { name: authUser.displayName }));
+      const cachedUser = readCachedUser(authUser.uid, authUser.email ?? "");
+      if (cachedUser) {
+        setUser(cachedUser);
         setAuthReady(true);
-      }, () => setAuthReady(true));
-    }, () => setAuthReady(true));
+      } else {
+        setAuthReady(false);
+      }
+      stopProfile = onSnapshot(doc(firestore, "users", authUser.uid), (snapshot) => {
+        const profile = snapshot.exists()
+          ? parseUser(authUser.uid, authUser.email ?? "", snapshot.data())
+          : null;
+        setUser(profile);
+        cacheUser(profile);
+        setAuthReady(true);
+      }, () => {
+        if (!cachedUser) setUser(null);
+        setAuthReady(true);
+      });
+    }, () => {
+      setUser(null);
+      setAuthReady(true);
+    });
     return () => {
       stopProfile();
       stopAuth();
@@ -228,8 +266,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [allProducts, user],
   );
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+  const signIn = useCallback(async (email: string, password: string, role?: UserRole) => {
+    const credential = await signInWithEmailAndPassword(firebaseAuth, email.trim(), password);
+    try {
+      const profileSnapshot = await getDoc(doc(firestore, "users", credential.user.uid));
+      if (!profileSnapshot.exists()) throw new Error("Account profile not found. Please contact support.");
+      const profile = parseUser(credential.user.uid, credential.user.email ?? email, profileSnapshot.data());
+      if (role && !profile.roles.includes(role)) {
+        throw new Error(role === "seller"
+          ? "This email is not registered as a seller account."
+          : "This email is not registered as a customer account.");
+      }
+      setUser(profile);
+      cacheUser(profile);
+      setAuthReady(true);
+    } catch (error) {
+      await firebaseSignOut(firebaseAuth).catch(() => undefined);
+      throw error;
+    }
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
@@ -263,6 +317,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp(),
         });
       }
+      const profile = parseUser(credential.user.uid, input.email.trim(), {
+        name: cleanName,
+        mobile: input.mobile.trim(),
+        roles: [input.role],
+        storeName: cleanStoreName,
+      });
+      setUser(profile);
+      cacheUser(profile);
+      setAuthReady(true);
     } catch (error) {
       await deleteUser(credential.user).catch(() => undefined);
       throw error;
@@ -273,6 +336,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(firebaseAuth, email.trim());
   }, []);
   const signOut = useCallback(async () => {
+    cacheUser(null);
+    setUser(null);
     await firebaseSignOut(firebaseAuth);
   }, []);
 

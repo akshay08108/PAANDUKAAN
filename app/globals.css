@@ -389,6 +389,9 @@ svg { display: block; }
 .seller-invite .eyebrow { color:var(--soft-gold); }
 .seller-invite h1 { margin:15px 0; color:white; font-size:clamp(50px,6vw,76px); line-height:.98; }
 .seller-invite p { max-width:620px; margin:0 0 25px; color:rgba(255,255,255,.65); line-height:1.7; }
+.seller-invite-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.seller-register-link { border-color:rgba(255,255,255,.45); background:transparent; color:white; }
+.seller-register-link:hover { border-color:white; background:rgba(255,255,255,.08); }
 .seller-invite > span { display:grid; width:230px; height:230px; justify-self:center; place-items:center; border:1px solid rgba(255,255,255,.22); border-radius:50%; color:var(--soft-gold); }
 .seller-invite > span svg { width:100px; }
 
