@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createUserWithEmailAndPassword,
   deleteUser,
@@ -27,12 +27,15 @@ import type {
   AppUser,
   CartLine,
   OrderStage,
+  OrderAlert,
   PaymentStatus,
   PickupOrder,
   Product,
   ProductInput,
   StoreInput,
   StoreProfile,
+  StoreReview,
+  SupportTicket,
   UserRole,
 } from "@/lib/types";
 
@@ -49,6 +52,10 @@ type AppContextValue = {
   cartCount: number;
   cartTotal: number;
   orders: PickupOrder[];
+  tickets: SupportTicket[];
+  reviews: StoreReview[];
+  alertsEnabled: boolean;
+  activeAlert: OrderAlert | null;
   signIn: (email: string, password: string, role?: UserRole) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -63,11 +70,34 @@ type AppContextValue = {
   saveStore: (store: StoreInput) => Promise<void>;
   updateOrderStage: (id: string, stage: OrderStage) => Promise<void>;
   updatePaymentStatus: (id: string, status: PaymentStatus) => Promise<void>;
+  enableAlerts: () => void;
+  dismissAlert: () => void;
+  createTicket: (order: PickupOrder, issue: string, message: string) => Promise<void>;
+  resolveTicket: (id: string, sellerReply: string) => Promise<void>;
+  createReview: (order: PickupOrder, stars: number, comment: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 const CART_KEY = "paandukaan-cart-v1";
 const AUTH_PROFILE_CACHE_KEY = "merapaan-firebase-profile-v1";
+
+function playAlert(context: AudioContext) {
+  if (context.state !== "running") return;
+  const start = context.currentTime;
+  [660, 880, 660].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const at = start + index * 0.22;
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.12, at + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.18);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(at);
+    oscillator.stop(at + 0.2);
+  });
+}
 
 function parseUser(id: string, email: string, data: Record<string, unknown>): AppUser {
   const roles: UserRole[] = Array.isArray(data.roles)
@@ -157,6 +187,34 @@ function parseOrder(id: string, data: Record<string, unknown>): PickupOrder {
   };
 }
 
+function parseTicket(id: string, data: Record<string, unknown>): SupportTicket {
+  return {
+    id,
+    orderId: String(data.orderId ?? ""),
+    customerId: String(data.customerId ?? ""),
+    customerName: String(data.customerName ?? "Customer"),
+    storeId: String(data.storeId ?? ""),
+    issue: String(data.issue ?? "Order support"),
+    message: String(data.message ?? ""),
+    status: data.status === "Resolved" ? "Resolved" : "Open",
+    sellerReply: data.sellerReply ? String(data.sellerReply) : undefined,
+    createdAt: String(data.createdAtText ?? ""),
+  };
+}
+
+function parseReview(id: string, data: Record<string, unknown>): StoreReview {
+  return {
+    id,
+    orderId: String(data.orderId ?? ""),
+    customerId: String(data.customerId ?? ""),
+    customerName: String(data.customerName ?? "Customer"),
+    storeId: String(data.storeId ?? ""),
+    stars: Math.max(1, Math.min(5, Number(data.stars ?? 5))),
+    comment: String(data.comment ?? ""),
+    createdAt: String(data.createdAtText ?? ""),
+  };
+}
+
 export function friendlyAuthError(reason: unknown) {
   const message = reason instanceof Error ? reason.message : "";
   if (message.includes("auth/invalid-credential")) return "Email or password is incorrect.";
@@ -177,6 +235,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [catalogReady, setCatalogReady] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [orders, setOrders] = useState<PickupOrder[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [reviews, setReviews] = useState<StoreReview[]>([]);
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [activeAlert, setActiveAlert] = useState<OrderAlert | null>(null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const alertsEnabledRef = useRef(false);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -250,12 +314,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => setOrders([]));
       return;
     }
-    const field = user.roles.includes("seller") ? "storeId" : "customerId";
+    const seller = user.roles.includes("seller");
+    const field = seller ? "storeId" : "customerId";
+    let initialized = false;
+    const previousStages = new Map<string, OrderStage>();
     const ordersQuery = query(collection(firestore, "paanOrders"), where(field, "==", user.id));
     return onSnapshot(ordersQuery, (snapshot) => {
-      setOrders(snapshot.docs.map((item) => parseOrder(item.id, item.data())).sort((a, b) => b.placedAt.localeCompare(a.placedAt)));
+      const nextOrders = snapshot.docs.map((item) => parseOrder(item.id, item.data())).sort((a, b) => b.placedAt.localeCompare(a.placedAt));
+      setOrders(nextOrders);
+      if (initialized) {
+        const changed = snapshot.docChanges().find((change) => {
+          const order = parseOrder(change.doc.id, change.doc.data());
+          if (seller) return change.type === "added" && order.stage === "Order placed";
+          return change.type === "modified" && previousStages.get(order.id) !== "Confirmed" && order.stage === "Confirmed";
+        });
+        if (changed) {
+          const order = parseOrder(changed.doc.id, changed.doc.data());
+          setActiveAlert({ audience: seller ? "seller" : "customer", title: seller ? "New pickup order" : "Order accepted", body: seller ? `${order.customerName} · pickup at ${order.pickupTime}` : `${order.storeName} accepted your pickup order.`, orderId: order.id });
+          if (alertsEnabledRef.current && audioRef.current) void audioRef.current.resume().then(() => playAlert(audioRef.current!)).catch(() => undefined);
+        }
+      }
+      previousStages.clear();
+      nextOrders.forEach((order) => previousStages.set(order.id, order.stage));
+      initialized = true;
     }, () => setOrders([]));
   }, [user?.id, user?.roles]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      queueMicrotask(() => { setTickets([]); setReviews([]); });
+      return;
+    }
+    const seller = user.roles.includes("seller");
+    const field = seller ? "storeId" : "customerId";
+    const ticketQuery = query(collection(firestore, "paanTickets"), where(field, "==", user.id));
+    const reviewQuery = query(collection(firestore, "paanReviews"), where(field, "==", user.id));
+    const stopTickets = onSnapshot(ticketQuery, (snapshot) => {
+      setTickets(snapshot.docs.map((item) => parseTicket(item.id, item.data())));
+    }, () => setTickets([]));
+    const stopReviews = onSnapshot(reviewQuery, (snapshot) => {
+      setReviews(snapshot.docs.map((item) => parseReview(item.id, item.data())));
+    }, () => setReviews([]));
+    return () => { stopTickets(); stopReviews(); };
+  }, [user?.id, user?.roles]);
+
+  useEffect(() => () => {
+    const context = audioRef.current;
+    audioRef.current = null;
+    if (context && context.state !== "closed") void context.close();
+  }, []);
+
+  useEffect(() => {
+    if (!activeAlert) return;
+    const timer = window.setTimeout(() => setActiveAlert(null), 7000);
+    return () => window.clearTimeout(timer);
+  }, [activeAlert]);
 
   const products = useMemo(
     () => allProducts.filter((item) => item.status === "published" && item.stock > 0),
@@ -438,6 +551,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await updateDoc(doc(firestore, "paanOrders", id), { paymentStatus: status, updatedAt: serverTimestamp() });
   }, [user]);
 
+  const enableAlerts = useCallback(() => {
+    const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!audioRef.current || audioRef.current.state === "closed") audioRef.current = new AudioContextClass();
+    setAlertsEnabled(true);
+    alertsEnabledRef.current = true;
+    void audioRef.current.resume().then(() => playAlert(audioRef.current!)).catch(() => undefined);
+  }, []);
+
+  const createTicket = useCallback(async (order: PickupOrder, issue: string, message: string) => {
+    if (!user || user.roles.includes("seller") || order.customerId !== user.id) throw new Error("A customer order is required.");
+    await addDoc(collection(firestore, "paanTickets"), {
+      orderId: order.id,
+      customerId: user.id,
+      customerName: user.name,
+      storeId: order.storeId,
+      issue: issue.trim(),
+      message: message.trim(),
+      status: "Open",
+      createdAtText: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }, [user]);
+
+  const resolveTicket = useCallback(async (id: string, sellerReply: string) => {
+    if (!user?.roles.includes("seller")) throw new Error("A seller account is required.");
+    await updateDoc(doc(firestore, "paanTickets", id), { status: "Resolved", sellerReply: sellerReply.trim(), updatedAt: serverTimestamp() });
+  }, [user]);
+
+  const createReview = useCallback(async (order: PickupOrder, stars: number, comment: string) => {
+    if (!user || user.roles.includes("seller") || order.customerId !== user.id || order.stage !== "Collected") throw new Error("Only collected customer orders can be reviewed.");
+    await setDoc(doc(firestore, "paanReviews", `${order.id}_${user.id}`), {
+      orderId: order.id,
+      customerId: user.id,
+      customerName: user.name,
+      storeId: order.storeId,
+      stars: Math.max(1, Math.min(5, stars)),
+      comment: comment.trim(),
+      createdAtText: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+  }, [user]);
+
   const value = useMemo<AppContextValue>(() => ({
     user,
     authReady,
@@ -449,6 +606,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cartCount: cart.reduce((sum, line) => sum + line.quantity, 0),
     cartTotal: cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0),
     orders,
+    tickets,
+    reviews,
+    alertsEnabled,
+    activeAlert,
     signIn,
     register,
     resetPassword,
@@ -463,11 +624,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveStore,
     updateOrderStage,
     updatePaymentStatus,
+    enableAlerts,
+    dismissAlert: () => setActiveAlert(null),
+    createTicket,
+    resolveTicket,
+    createReview,
   }), [
-    user, authReady, products, sellerProducts, stores, catalogReady, cart, orders,
+    user, authReady, products, sellerProducts, stores, catalogReady, cart, orders, tickets, reviews,
+    alertsEnabled, activeAlert,
     signIn, register, resetPassword, signOut, addToCart, setQuantity, removeFromCart,
     placeOrder, publishProduct, updateProduct, deactivateProduct, saveStore,
-    updateOrderStage, updatePaymentStatus,
+    updateOrderStage, updatePaymentStatus, enableAlerts, createTicket, resolveTicket, createReview,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -24,6 +24,17 @@ service cloud.firestore {
         && currentUser().sellerStatus == 'approved';
     }
 
+    function isCustomer() {
+      return signedIn()
+        && currentUser().roles is list
+        && 'customer' in currentUser().roles
+        && !('seller' in currentUser().roles);
+    }
+
+    function orderFor(orderId) {
+      return get(/databases/$(database)/documents/paanOrders/$(orderId)).data;
+    }
+
     function validStageChange() {
       return request.resource.data.stage == resource.data.stage
         || (resource.data.stage == 'Order placed' && request.resource.data.stage in ['Confirmed', 'Rejected'])
@@ -80,7 +91,7 @@ service cloud.firestore {
     }
 
     match /paanOrders/{orderId} {
-      allow create: if signedIn()
+      allow create: if isCustomer()
         && request.resource.data.customerId == request.auth.uid
         && request.resource.data.storeId is string
         && request.resource.data.items is list
@@ -105,6 +116,47 @@ service cloud.firestore {
           'PAY_AT_PICKUP', 'PENDING', 'PAID', 'FAILED', 'REFUNDED'
         ];
       allow delete: if false;
+    }
+
+    match /paanTickets/{ticketId} {
+      allow create: if isCustomer()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.storeId is string
+        && request.resource.data.orderId is string
+        && request.resource.data.issue is string
+        && request.resource.data.message is string
+        && request.resource.data.status == 'Open'
+        && orderFor(request.resource.data.orderId).customerId == request.auth.uid
+        && orderFor(request.resource.data.orderId).storeId == request.resource.data.storeId;
+      allow read: if signedIn() && (
+        resource.data.customerId == request.auth.uid
+        || (isSeller() && resource.data.storeId == request.auth.uid)
+      );
+      allow update: if isSeller()
+        && resource.data.storeId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'sellerReply', 'updatedAt'])
+        && request.resource.data.status == 'Resolved';
+      allow delete: if false;
+    }
+
+    match /paanReviews/{reviewId} {
+      allow create: if isCustomer()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.storeId is string
+        && request.resource.data.orderId is string
+        && request.resource.data.stars is number
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5
+        && request.resource.data.comment is string
+        && orderFor(request.resource.data.orderId).customerId == request.auth.uid
+        && orderFor(request.resource.data.orderId).storeId == request.resource.data.storeId
+        && orderFor(request.resource.data.orderId).stage == 'Collected';
+      allow read: if signedIn() && (
+        resource.data.customerId == request.auth.uid
+        || (isSeller() && resource.data.storeId == request.auth.uid)
+      );
+      allow update, delete: if false;
     }
 
     match /{document=**} {

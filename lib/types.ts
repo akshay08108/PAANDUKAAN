@@ -68,3 +68,34 @@ export type PickupOrder = {
 
 export type ProductInput = Omit<Product, "id" | "storeId" | "storeName" | "status">;
 export type StoreInput = Omit<StoreProfile, "id" | "ownerId">;
+
+export type SupportTicket = {
+  id: string;
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  storeId: string;
+  issue: string;
+  message: string;
+  status: "Open" | "Resolved";
+  sellerReply?: string;
+  createdAt: string;
+};
+
+export type StoreReview = {
+  id: string;
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  storeId: string;
+  stars: number;
+  comment: string;
+  createdAt: string;
+};
+
+export type OrderAlert = {
+  audience: UserRole;
+  title: string;
+  body: string;
+  orderId: string;
+};
