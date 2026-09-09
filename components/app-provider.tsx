@@ -81,6 +81,10 @@ const AppContext = createContext<AppContextValue | null>(null);
 const CART_KEY = "paandukaan-cart-v1";
 const AUTH_PROFILE_CACHE_KEY = "merapaan-firebase-profile-v1";
 
+function omitUndefined<T extends object>(value: T) {
+  return Object.fromEntries(Object.entries(value).filter(([, field]) => field !== undefined));
+}
+
 function playAlert(context: AudioContext) {
   if (context.state !== "running") return;
   const start = context.currentTime;
@@ -486,7 +490,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       customerId: user.id,
       customerName: user.name,
       customerMobile: user.mobile,
-      items: cart,
+      items: cart.map((line) => ({ ...line, product: omitUndefined(line.product) })),
       total: cart.reduce((sum, line) => sum + line.product.price * line.quantity, 0),
       storeId: store.storeId,
       storeName: stores.find((item) => item.id === store.storeId)?.name ?? store.storeName,
@@ -509,7 +513,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user?.roles.includes("seller")) throw new Error("A seller account is required.");
     const store = stores.find((item) => item.id === user.id);
     await addDoc(collection(firestore, "paanProducts"), {
-      ...product,
+      ...omitUndefined(product),
       storeId: user.id,
       storeName: store?.name ?? user.storeName ?? user.name,
       status: product.stock > 0 ? "published" : "out-of-stock",
@@ -521,7 +525,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateProduct = useCallback(async (id: string, product: ProductInput) => {
     if (!user?.roles.includes("seller")) throw new Error("A seller account is required.");
     await updateDoc(doc(firestore, "paanProducts", id), {
-      ...product,
+      ...omitUndefined(product),
       status: product.stock > 0 ? "published" : "out-of-stock",
       updatedAt: serverTimestamp(),
     });
@@ -535,7 +539,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const saveStore = useCallback(async (store: StoreInput) => {
     if (!user?.roles.includes("seller")) throw new Error("A seller account is required.");
     await setDoc(doc(firestore, "paanStores", user.id), {
-      ...store,
+      ...omitUndefined(store),
       ownerId: user.id,
       updatedAt: serverTimestamp(),
     }, { merge: true });
