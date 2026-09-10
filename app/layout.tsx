@@ -1,4 +1,5 @@
-import "@fontsource-variable/manrope";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./globals.css";
 import type { Metadata } from "next";
 import { AppProvider } from "@/components/app-provider";
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport = { themeColor: "#003B2A", colorScheme: "light" };
+export const viewport = { themeColor: "#062f26", colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" data-scroll-behavior="smooth"><body><AppProvider><AppShell>{children}</AppShell></AppProvider></body></html>;

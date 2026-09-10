@@ -16,7 +16,7 @@ function ProductCard({ product, store, onAdd }: { product: Product; store?: Stor
       <span className="eyebrow">{product.category}</span><h3>{product.name}</h3><p>{product.description}</p>
       <small><Icon name="shop"/>{product.storeName}{store?.area ? " · " + store.area : ""}</small>
       <div className="product-meta"><span><Icon name="clock"/>{product.preparationMinutes ?? 15} min</span><span>{product.stock} available</span></div>
-      <div className="product-action"><strong>₹{product.price.toLocaleString("en-IN")}</strong><button type="button" onClick={onAdd}>Add to cart</button></div>
+      <div className="product-action"><strong>₹{product.price.toLocaleString("en-IN")}</strong><button type="button" onClick={onAdd}><Icon name="cart"/>Add</button></div>
     </div>
   </article>;
 }
