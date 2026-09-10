@@ -9,16 +9,26 @@ import type { OrderStage, PaymentStatus } from "@/lib/types";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return <span className={compact ? "brand-lockup compact" : "brand-lockup"}>
-    <Image className="brand-symbol" src="/icons/merapaan-favicon.png" width={38} height={38} alt=""/>
+    <Image className="brand-symbol" src="/icons/merapaan-favicon.png" width={38} height={38} alt="" loading="eager"/>
     <span className="brand-word">MeraPaan</span>
   </span>;
 }
 
 export function ProductMedia({ src, alt, className = "" }: { src?: string; alt: string; className?: string }) {
   const [failed, setFailed] = useState(false);
+  const isImageCandidate = (() => {
+    if (!src) return false;
+    if (src.startsWith("/")) return true;
+    try {
+      const url = new URL(src);
+      return ["http:", "https:"].includes(url.protocol) && !(url.hostname.endsWith("google.com") && url.pathname.startsWith("/search"));
+    } catch {
+      return false;
+    }
+  })();
   return <span className={`media-frame ${className}`}>
-    {src && !failed
-      ? <Image src={src} alt={alt} fill sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 25vw" onError={() => setFailed(true)}/>
+    {isImageCandidate && !failed
+      ? <Image src={src!} alt={alt} fill sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 25vw" onError={() => setFailed(true)}/>
       : <span className="leaf-placeholder"><Icon name="leaf"/><small>MeraPaan</small></span>}
   </span>;
 }
