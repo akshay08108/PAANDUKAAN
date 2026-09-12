@@ -806,3 +806,52 @@ body { font-family:"Plus Jakarta Sans Variable","Plus Jakarta Sans",sans-serif; 
   .seller-metrics > button { min-height:110px; padding:14px; }
   .seller-dashboard-panel,.seller-metrics > button { border-radius:13px; }
 }
+
+/* Eucalyptus and parchment surface palette */
+:root {
+  --ivory:#e6ede6;
+  --paper:#f3efe3;
+  --pale:#dce7dc;
+  --line:#c8d2c8;
+  --surface:#eef3e9;
+  --surface-deep:#d9e4d9;
+  --shadow:0 18px 50px rgba(6,47,38,.12);
+}
+html,body { background:var(--ivory); }
+.site-header { background:rgba(243,239,227,.96); }
+.account-popover,.account-popover::before,.account-popover > a,.account-popover > button { background:var(--paper); }
+.account-popover > a:hover,.account-popover > button:hover { background:var(--surface-deep); }
+.hero,.home-section { background:var(--ivory); }
+.hero-search { background:var(--paper); }
+.hero-card { background:var(--paper); }
+.store-card,.product-card,.home-categories a,.home-categories a:hover { background:var(--paper); }
+.category-band { background:var(--surface-deep); }
+.catalog-tools,.panel,.summary,.order-card,.account-panel,.cart-lines article,.empty-state { background:var(--paper); }
+.search-field,.catalog-tools > select,.date-options button,.slot-options button,.payment-options button { background:var(--surface); }
+.cart-store,.selected-time,.fresh-note,.payment-note { background:var(--surface-deep); }
+.account-actions { background:#d7e2d5; }
+.auth-page,.auth-workspace { background:var(--surface-deep); }
+.auth-card { padding:34px; border-radius:18px; background:var(--paper); box-shadow:var(--shadow); }
+.auth-tabs { background:#dbe5d8; }
+.auth-tabs button.active,.role-options button { background:var(--surface); }
+.role-options button.active { background:#d5e6d7; }
+.auth-card .form input { background:#e9efe6; }
+.seller-app { background:#e0e8df; }
+.seller-topbar,.seller-alert-toggle,.seller-signout,.seller-metrics > button,.seller-dashboard-panel,
+.editor-panel,.seller-product-list article,.store-form,.seller-ticket-list,.seller-ticket-detail,
+.seller-rating-overview,.seller-review-list,.seller-ticket-list > button,.order-alert-toast { background:var(--paper); }
+.seller-small-action.secondary { background:var(--surface); }
+.seller-order-head { background:var(--surface-deep); }
+.seller-order-table article { background:var(--paper); }
+.seller-mobile-nav,.seller-mobile-more,.seller-mobile-more button { background:var(--paper); }
+.customer-alert-control { background:var(--paper); }
+.customer-order-actions form { background:var(--surface-deep); }
+.customer-order-actions select,.customer-order-actions textarea { background:var(--surface); }
+.footer { background:#dce6dc; }
+
+@media (max-width:900px) {
+  .seller-topbar { background:var(--royal); }
+}
+@media (max-width:600px) {
+  .seller-order-table article { background:var(--paper); }
+}
